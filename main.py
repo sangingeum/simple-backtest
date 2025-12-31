@@ -42,11 +42,17 @@ monthly_cash = 1500
 
 # 시나리오 정의 (GLD를 포함한 티커 리스트와 비중 리스트의 순서를 반드시 맞춰야 함)
 scenarios = {
-    "1. Accelerator (USD 50/TQQQ 35/GLD 15)": (['GLD', 'TQQQ', 'USD'], [0.15, 0.35, 0.50]),
-    "2. Stabilizer (QLD 55/USD 30/GLD 15)": (['GLD', 'QLD', 'USD'], [0.15, 0.55, 0.30]),
-    "3. Basic USD 85% + GLD 15%": (['GLD', 'USD'], [0.15, 0.85]),
-    "4. Basic SOXL 85% + GLD 15%": (['GLD', 'SOXL'], [0.15, 0.85]),
-    "5. Basic TQQQ 85% + GLD 15%": (['GLD', 'TQQQ'], [0.15, 0.85])
+    "1. USD 50/TQQQ 35/GLD 15": (['GLD', 'TQQQ', 'USD'], [0.15, 0.35, 0.50]),
+    "2. QLD 55/USD 30/GLD 15": (['GLD', 'QLD', 'USD'], [0.15, 0.55, 0.30]),
+    "3. USD 85% + GLD 15%": (['GLD', 'USD'], [0.15, 0.85]),
+    "4. SOXL 85% + GLD 15%": (['GLD', 'SOXL'], [0.15, 0.85]),
+    "5. TQQQ 85% + GLD 15%": (['GLD', 'TQQQ'], [0.15, 0.85]),
+    "6. SPXL 85% + GLD 15%": (['GLD', 'SPXL'], [0.15, 0.85]),
+    "7. QLD 85% + GLD 15%": (['GLD', 'QLD'], [0.15, 0.85]),
+    "8. UPRO 85% + GLD 15%": (['GLD', 'UPRO'], [0.15, 0.85]),
+    "9. VOO 85% + GLD 15%": (['GLD', 'VOO'], [0.15, 0.85]),
+    "10. VOO 100": (['VOO'], [1.0]),
+    "11. SOXL 100": (['SOXL'], [1.0]),
 }
 
 results = {}
