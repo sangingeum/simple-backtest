@@ -110,34 +110,47 @@ def backtest_portfolio(tickers, weights, initial_capital=20000, monthly_investme
 
 scenarios = {
     "1. USD 50/TQQQ 35/GLD 15": (['GLD', 'TQQQ', 'USD'], [0.15, 0.35, 0.50]),
-    "2. USD 30/QLD 55/GLD 15": (['GLD', 'QLD', 'USD'], [0.15, 0.55, 0.30]),
-    "3. USD 50/QLD 35/GLD 15": (['GLD', 'QLD', 'USD'], [0.15, 0.35, 0.50]),
-    "4. USD 85% + GLD 15%": (['GLD', 'USD'], [0.15, 0.85]),
-    "5. SOXL 85% + GLD 15%": (['GLD', 'SOXL'], [0.15, 0.85]),
-    "6. TQQQ 85% + GLD 15%": (['GLD', 'TQQQ'], [0.15, 0.85]),
-    "7. SPXL 85% + GLD 15%": (['GLD', 'SPXL'], [0.15, 0.85]),
-    "8. QLD 85% + GLD 15%": (['GLD', 'QLD'], [0.15, 0.85]),
-    "9. UPRO 85% + GLD 15%": (['GLD', 'UPRO'], [0.15, 0.85]),
-    "10. VOO 85% + GLD 15%": (['GLD', 'VOO'], [0.15, 0.85]),
-    "11. VOO 100%": (['VOO'], [1.00]),
-    "12. VTI 100%": (['VTI'], [1.00]),
-    "13. SOXL 100%": (['SOXL'], [1.00]),
+    "2. SOXL 50/TQQQ 35/GLD 15": (['GLD', 'TQQQ', 'SOXL'], [0.15, 0.35, 0.50]),
+    "3. USD 30/QLD 55/GLD 15": (['GLD', 'QLD', 'USD'], [0.15, 0.55, 0.30]),
+    "4. USD 50/QLD 35/GLD 15": (['GLD', 'QLD', 'USD'], [0.15, 0.35, 0.50]),
+    "5. USD 85% + GLD 15%": (['GLD', 'USD'], [0.15, 0.85]),
+    "6. SOXL 85% + GLD 15%": (['GLD', 'SOXL'], [0.15, 0.85]),
+    "7. TQQQ 85% + GLD 15%": (['GLD', 'TQQQ'], [0.15, 0.85]),
+    "8. SPXL 85% + GLD 15%": (['GLD', 'SPXL'], [0.15, 0.85]),
+    "9. QLD 85% + GLD 15%": (['GLD', 'QLD'], [0.15, 0.85]),
+    "10. UPRO 85% + GLD 15%": (['GLD', 'UPRO'], [0.15, 0.85]),
+    "11. VOO 85% + GLD 15%": (['GLD', 'VOO'], [0.15, 0.85]),
+    "12. VOO 100%": (['VOO'], [1.00]),
+    "13. VTI 100%": (['VTI'], [1.00]),
+    "14. SOXL 100%": (['SOXL'], [1.00]),
 }
 
 results = {}
 for name, (tickers, weights) in scenarios.items():
     results[name] = backtest_portfolio(tickers, weights, initial_cash, monthly_cash, inflation)
 
-# Visualization
-plt.figure(figsize=(14, 8))
-for name, res in results.items():
-    plt.plot(res['history'], label=f"{name} (Sharpe: {res['sharpe']:.2f})", linewidth=1.5)
+# --- Visualization ---
+plt.figure(figsize=(14, 9))
+
+# Create a color map to handle many scenarios
+colors = plt.cm.nipy_spectral(np.linspace(0, 1, len(results)))
+
+for (name, res), color in zip(results.items(), colors):
+    plt.plot(
+        res['history'], 
+        label=f"{name} (Sharpe: {res['sharpe']:.2f})", 
+        linewidth=2, 
+        color=color
+    )
 
 plt.yscale('log')
 plt.title(f'Post-Tax Backtest (Log Scale)\nInitial: ${initial_cash}, Monthly: ${monthly_cash}', fontsize=15)
 plt.ylabel('Portfolio Value (USD)')
-plt.legend(loc='upper left', fontsize='small', ncol=2)
-plt.grid(True, which="both", ls="-", alpha=0.3) 
+
+# Place legend outside or use a tighter layout since there are many items
+plt.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize='small', ncol=1)
+plt.grid(True, which="both", ls="-", alpha=0.3)
+plt.tight_layout() # Prevents legend from being cut off
 plt.show()
 
 # Print Detailed Results
