@@ -635,7 +635,7 @@ with st.sidebar.expander("Create Custom", expanded=False):
             }
             save_scenarios(st.session_state.scenarios)
             # Add to sortable state active list immediately
-            st.session_state.sortable_state[0].append(new_name)
+            st.session_state.sortable_state[0]["items"].append(new_name)
             st.success(f"Saved!")
             st.rerun()
 
