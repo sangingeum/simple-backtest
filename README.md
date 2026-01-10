@@ -15,3 +15,7 @@ uv run streamlit run main.py
 - Persistent portfolio storage
 - Metrics: CAGR, Sharpe, Sortino, Volatility, Calmar, Max Drawdown
 - Adjust tax, inflation, and contribution settings
+
+## Image
+
+![page_image](./docs/page_image.png) 
