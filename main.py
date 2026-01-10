@@ -132,7 +132,7 @@ def calculate_metrics(history_series, daily_returns, total_invested, start_date,
         'total_invested': total_invested
     }
 
-def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capital, monthly_investment, inflation_rate, tax_threshold, strategy_mode, slippage_rate=0.0, commission_fee=0.0, signal_series=None, safe_assets=None, risk_off_invested_pct=0.0):
+def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capital, monthly_investment, inflation_rate, tax_threshold, strategy_mode, slippage_rate=0.0, commission_fee=0.0, tax_settlement_mode="Immediate", signal_series=None, safe_assets=None, risk_off_invested_pct=0.0):
     valid_tickers = [t for t in tickers if t in data.columns]
     if len(valid_tickers) != len(tickers):
         return None, None
@@ -159,6 +159,8 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
     last_month = None
     last_year = returns.index[0].year
     annual_realized_gain = 0.0
+    pending_tax_liability = 0.0 # For Annual settlement
+    
     current_monthly_inv = monthly_investment
     total_invested = initial_capital
     
@@ -178,10 +180,15 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
     for date in returns.index:
         # --- Start of Day Processing ---
         
-        # 1. Inflation Adjustment (Yearly)
+        # 1. Inflation Adjustment & Annual Tax Settlement (Yearly)
         if date.year != last_year:
+            # Settle taxes annually if selected
+            if tax_settlement_mode == "Annual" and pending_tax_liability > 0:
+                cash_balance -= pending_tax_liability
+                pending_tax_liability = 0.0
+            
             current_monthly_inv *= (1 + inflation_rate)
-            annual_realized_gain = 0.0 # Reset Tax Bucket
+            annual_realized_gain = 0.0 # Reset Tax Bucket after payment year
             last_year = date.year
 
         prev_total = sum(assets_value.values()) + cash_balance
@@ -263,14 +270,6 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
                               current_weights[t] = weight_map[t] * risk_off_invested_pct
 
             # --- 2. Calculate Initial Targets ---
-            # We calculate targets based on CURRENT equity.
-            # As we trade, costs (Tax, Comm, Slip) may reduce Cash.
-            # Ideally, we should reserve cash for costs, but since costs depend on trade size...
-            # We will deduct costs from 'Target Cash' or 'Cash Balance' relative to the remaining pool.
-            # Simplified approach: Calculate Ideal Targets -> Execute -> Deduct Costs from Cash.
-            # If Cash goes negative? We assume margin or liquidation (imperfect but standard for simple backtests).
-            # Better: Deduct from resulting cash balance.
-            
             target_values = {}
             current_equity_for_calc = sum(assets_value.values()) + cash_balance
             
@@ -279,7 +278,7 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
             
             # --- 3. Execute Trades ---
             total_trans_cost = 0.0
-            total_tax_paid = 0.0
+            total_tax_paid_now = 0.0
             
             for ticker in tickers:
                 target_val = target_values[ticker]
@@ -299,14 +298,8 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
                 # Tax Logic (Only on Sells)
                 if trade_diff < 0: # SELLING
                     sell_amount = abs(trade_diff)
-                    # Cost Basis Pro-Rating
-                    # pct_sold = sell_amount / current_val
-                    # cost_basis_of_sold_portion = assets_cost_basis[ticker] * pct_sold
-                    # But simpler: calculate current average profit ratio
                     
                     avg_cost_basis = assets_cost_basis[ticker]
-                    # If current_val < cost_basis, loss.
-                    
                     # Logic update: We need to reduce the stored cost basis proportional to the sell
                     pct_sold = sell_amount / current_val if current_val > 0 else 0
                     basis_sold = avg_cost_basis * pct_sold
@@ -319,8 +312,6 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
                     if realized_gain > 0:
                         # Tax Calculation: Marginal
                         # We have 'annual_realized_gain' (already booked).
-                        # New gain adds to it.
-                        # Tax is paid on amount ABOVE threshold.
                         
                         # Amount ALREADY over threshold
                         prev_taxable_gain = max(0, annual_realized_gain - tax_threshold)
@@ -335,11 +326,15 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
                         taxable_now = new_taxable_gain - prev_taxable_gain
                         if taxable_now > 0:
                             tax_on_trade = taxable_now * 0.22 # 22% rate
-                            total_tax_paid += tax_on_trade
+                            
+                            if tax_settlement_mode == "Immediate":
+                                total_tax_paid_now += tax_on_trade
+                            else:
+                                pending_tax_liability += tax_on_trade
+                                
                     else:
-                        # Loss reduces annual realized gain? 
-                        # US Tax logic allows netting losses. Let's assume yes.
-                        annual_realized_gain += realized_gain # (adding negative)
+                        # Loss netting
+                        annual_realized_gain += realized_gain 
 
                 elif trade_diff > 0: # BUYING
                     # Increase Cost Basis
@@ -349,20 +344,19 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
                 assets_value[ticker] = target_val
 
             # --- 4. Settle Costs ---
-            # Total deducted from System = Transaction Costs + Taxes
-            # This money leaves the portfolio.
+            # Deduct Transaction Costs + IMMEDIATE Taxes
             
-            # The remaining value must be in Cash.
-            # Mathematical check:
-            # Pre-Trade Equity = Sum(Assets) + Cash
-            # Post-Trade Assets = Sum(Targets)
-            # Implied Cash (if no costs) = Pre-Trade Equity - Sum(Targets)
-            # Actual Cash = Implied Cash - Costs - Taxes
-            
-            allocated_value = sum(assets_value.values()) # Should equal sum(target_values)
+            allocated_value = sum(assets_value.values()) 
             implied_cash = current_equity_for_calc - allocated_value
             
-            final_cash = implied_cash - total_trans_cost - total_tax_paid
+            final_cash = implied_cash - total_trans_cost - total_tax_paid_now
+            
+            # If Annual, pending_tax_liability stays internal until Year End
+            if tax_settlement_mode == "Annual":
+                # Check if we need to force liquidate cash? 
+                # No, we just deduct from cash at end of year. 
+                # If cash goes negative at year end, we are effectively using margin.
+                pass
             
             cash_balance = final_cash
             
@@ -370,7 +364,11 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
             prev_signal_bull = current_signal_bull
         
         last_month = date.month
-        values_history.append(sum(assets_value.values()) + cash_balance)
+        values_history.append(sum(assets_value.values()) + cash_balance - pending_tax_liability) 
+        # Note: We subtract pending liability from daily valuation to be honest about Net Worth?
+        # Or should we show gross? Net Worth usually implies liability subtraction.
+        # Decision: Show Net Equity (Assets + Cash - Liabilities)
+
     
     history_series = pd.Series(values_history, index=returns.index)
     strat_ret_series = pd.Series(daily_strategy_returns, index=returns.index)
@@ -387,6 +385,7 @@ tax_threshold = st.sidebar.number_input("Tax Free Threshold ($)", value=2000, st
 inflation_rate = st.sidebar.slider("Annual Inflation Rate (%)", 0.0, 10.0, 0.0, 0.1) / 100
 slippage_rate = st.sidebar.slider("Slippage (%)", 0.0, 5.0, 0.1, 0.1, help="Estimated price impact per trade.") / 100.0
 commission_fee = st.sidebar.number_input("Commission per Trade ($)", value=0.0, step=1.0, help="Flat fee per ticker traded per rebalance.")
+tax_settlement_mode = st.sidebar.selectbox("Tax Settlement", ["Immediate", "Annual"], help="'Immediate': Pay tax instantly on rebalance gains.\n'Annual': Defer payment until Dec 31st each year (allows compounding).")
 
 
     # Strategy Options
@@ -402,7 +401,7 @@ strategy_descriptions = {
     STRAT_TREND: "Risk-On only when Price > SMA (e.g., 200-day). This acts as a 'Circuit Breaker' for secular bear markets. **Pros:** Avoids major crashes like 2008. **Cons:** Can 'whipsaw' (sell low, buy high) during sideways markets.",
     STRAT_CROSS: "A 'Golden Cross' strategy. Risk-On when a Fast SMA (e.g., 50) is above a Slow SMA (e.g., 200). **Pros:** Filters out minor price 'noise' better than a single SMA. **Cons:** Even more lagging; you will miss more of the initial recovery gains.",
     STRAT_VOL: "Exits the market when the VIX (Fear Index) spikes above your threshold. **Pros:** Proactively exits before 'volatility decay' eats your leveraged ETF gains. **Cons:** Market panics are often short-lived, leading to unnecessary exits.",
-    STRAT_TRAIL: "Exits if the signal ticker drops X% from its recent peak. Only re-enters when Price > SMA. **Pros:** Hard limit on capital loss. **Cons:** Requires a perfect 're-entry' setting to avoid being left in cash during a V-shaped recovery."
+    STRAT_TRAIL: "Exits if the signal ticker drops X% from its recent peak. Only re-enters when Price > SMA. **Pros:** Hard limit on capital loss. **Cons:** Requires a perfect 're-entry' setting. **Note:** Assumes 'Invested' at start of simulation."
 }
 
 strategy_mode = st.sidebar.selectbox(
@@ -769,6 +768,7 @@ else:
                     strategy_mode,
                     slippage_rate,
                     commission_fee,
+                    tax_settlement_mode,
                     signal_series,
                     safe_assets,
                     risk_off_invested_pct
