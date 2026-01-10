@@ -20,3 +20,8 @@ uv run streamlit run main.py
     - Interactive performance charts.
     - Metrics: CAGR, Sharpe, Sortino, Volatility, Calmar, Max Drawdown.
     - Detailed breakdown of final values and costs.
+
+
+## Image
+
+![page_image](./docs/page_image.png)
