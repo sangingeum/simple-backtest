@@ -120,6 +120,13 @@ def calculate_metrics(history_series, daily_returns, total_invested, start_date,
     
     calmar = cagr / abs(mdd) if mdd != 0 else 0
 
+    # Pain Index: Average of the absolute value of drawdowns
+    # (using abs() although drawdown is typically negative, so mean(abs(drawdown)))
+    pain_index = drawdown.abs().mean()
+    
+    # Pain Ratio: CAGR / Pain Index
+    pain_ratio = cagr / pain_index if pain_index != 0 else 0
+
     return {
         'final_value': end_val,
         'sharpe': sharpe,
@@ -128,6 +135,8 @@ def calculate_metrics(history_series, daily_returns, total_invested, start_date,
         'mdd': mdd,
         'cagr': cagr,
         'calmar': calmar,
+        'pain_index': pain_index,
+        'pain_ratio': pain_ratio,
         'profit': end_val - total_invested,
         'total_invested': total_invested
     }
@@ -816,8 +825,10 @@ else:
                         "CAGR": f"{m['cagr']:.2%}",
                         "Sharpe": f"{m['sharpe']:.2f}",
                         "Sortino": f"{m['sortino']:.2f}",
-                        "Volatility": f"{m['volatility']:.2%}",
+                        "Vol": f"{m['volatility']:.2%}",
                         "Calmar": f"{m['calmar']:.2f}",
+                        "Pain Idx": f"{m['pain_index']:.2%}",
+                        "Pain Ratio": f"{m['pain_ratio']:.2f}",
                         "Max Drawdown": f"{m['mdd']:.2%}",
                         "Total Invested": f"${m['total_invested']:,.0f}"
                     })
