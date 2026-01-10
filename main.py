@@ -132,7 +132,7 @@ def calculate_metrics(history_series, daily_returns, total_invested, start_date,
         'total_invested': total_invested
     }
 
-def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capital, monthly_investment, inflation_rate, tax_threshold):
+def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capital, monthly_investment, inflation_rate, tax_threshold, strategy_mode, signal_series=None, safe_assets=None, risk_off_invested_pct=0.0):
     valid_tickers = [t for t in tickers if t in data.columns]
     if len(valid_tickers) != len(tickers):
         return None, None
@@ -148,8 +148,10 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
     weight_map = dict(zip(tickers, weights))
     expense_map = dict(zip(tickers, expenses))
     
+    # Initialize assets and cash
     assets_value = {ticker: initial_capital * weight_map[ticker] for ticker in tickers}
     assets_cost_basis = {ticker: initial_capital * weight_map[ticker] for ticker in tickers}
+    cash_balance = 0.0
     
     values_history = []
     daily_strategy_returns = []
@@ -159,9 +161,18 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
     annual_realized_gain = 0 
     current_monthly_inv = monthly_investment
     total_invested = initial_capital
+    
+    # Strategy State
+    prev_signal_bull = True # Default assumption or need to check start? 
+    if strategy_mode == "Trend Following (QQQ SMA)" and signal_series is not None:
+         # Initial state based on first day data
+         try:
+             prev_signal_bull = signal_series.loc[returns.index[0]]
+         except:
+             prev_signal_bull = True
 
     for date in returns.index:
-        prev_total = sum(assets_value.values())
+        prev_total = sum(assets_value.values()) + cash_balance
         
         if date.year != last_year:
             current_monthly_inv *= (1 + inflation_rate)
@@ -179,19 +190,80 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
             daily_expense = expense_ratio / 252
             assets_value[ticker] *= (1 - daily_expense)
         
-        post_market_total = sum(assets_value.values())
+        post_market_total = sum(assets_value.values()) + cash_balance
         
         strat_ret = (post_market_total - prev_total) / prev_total if prev_total != 0 else 0
         daily_strategy_returns.append(strat_ret)
 
+
+
+        rebalance_needed = False
+        current_signal_bull = True
+
+        # Check Trend Signal Logic
+        if strategy_mode == "Trend Following (QQQ SMA)" and signal_series is not None:
+            try:
+                # Check signal for TODAY (closing prices determines state for tomorrow? 
+                # Or we rebalance AT CLOSE today? 
+                # Standard backtest: Signal calculated on Yesterday's Close implies trade at Open.
+                # Here we have daily data. We can assume we trade at Close based on Close signal 
+                # (Slight lookahead bias if not careful, but standard for 1D signals).
+                # To be practically executable: Trade Next Open. 
+                # But for this script's daily resolution: Trade continuously or Close-to-Close changes.
+                # Let's use signal at date. If Signal changed from Yesterday, Rebalance NOW.
+                current_signal_bull = signal_series.loc[date]
+                
+                if current_signal_bull != prev_signal_bull:
+                    rebalance_needed = True
+            except KeyError:
+                current_signal_bull = prev_signal_bull # Keep status quo if data missing
+        
+        # Check Monthly Rebalance Logic
         if last_month is not None and date.month != last_month:
+            rebalance_needed = True
             total_invested += current_monthly_inv
-            current_total = sum(assets_value.values())
-            target_total = current_total + current_monthly_inv
+            # Add cash immediately
+            cash_balance += current_monthly_inv
+
+        if rebalance_needed:
+            current_total_equity = sum(assets_value.values()) + cash_balance
             
+            # Determine Target Weights
+            current_weights = {}
+            
+            if strategy_mode == "Trend Following (QQQ SMA)":
+                 if current_signal_bull:
+                      # RISK ON: Full Allocation
+                      current_weights = weight_map.copy()
+                 else:
+                      # RISK OFF: Safe Assets Only
+                      # We Keep Safe Assets at their original prescribed weight?
+                      # Or do we scale them up?
+                      # User says: "Keep the 15% GLD". Implies do not scale up.
+                      current_weights = {}
+                      for t in tickers:
+                           if safe_assets and t in safe_assets:
+                                # Safe assets stay at target
+                                current_weights[t] = weight_map[t]
+                           else:
+                                # Risk assets reduce to risk_off_invested_pct of their target
+                                current_weights[t] = weight_map[t] * risk_off_invested_pct
+            else:
+                 # Standard Rebalancing
+                 current_weights = weight_map.copy()
+            
+            # Calculate target value for each asset
+            target_values = {}
             for ticker in tickers:
-                weight = weight_map[ticker]
-                target_val = target_total * weight
+                 target_values[ticker] = current_total_equity * current_weights.get(ticker, 0.0)
+            
+            # The remainder goes to cash
+            allocated_value = sum(target_values.values())
+            target_cash = current_total_equity - allocated_value
+            
+            # Execute Trades
+            for ticker in tickers:
+                target_val = target_values[ticker]
                 current_val = assets_value[ticker]
                 
                 if current_val > target_val:
@@ -201,15 +273,26 @@ def run_backtest(scenario_name, tickers, weights, expenses, data, initial_capita
                     annual_realized_gain += realized_gain
                     
                     if annual_realized_gain > tax_threshold:
-                        if annual_realized_gain > tax_threshold:
-                             tax = realized_gain * 0.22 
-                             assets_value[ticker] -= tax
+                         tax = realized_gain * 0.22 
+                         sell_amount -= tax 
                 
                 assets_value[ticker] = target_val
-                assets_cost_basis[ticker] = target_val 
+                
+                if current_val > 0:
+                    assets_cost_basis[ticker] = assets_cost_basis[ticker] * (target_val / current_val)
+                    if target_val > current_val:
+                         cost_of_new = target_val - current_val
+                         assets_cost_basis[ticker] += cost_of_new
+                else: 
+                     assets_cost_basis[ticker] = target_val
+
+            cash_balance = target_cash
+            
+            # Update State
+            prev_signal_bull = current_signal_bull
         
         last_month = date.month
-        values_history.append(sum(assets_value.values()))
+        values_history.append(sum(assets_value.values()) + cash_balance)
     
     history_series = pd.Series(values_history, index=returns.index)
     strat_ret_series = pd.Series(daily_strategy_returns, index=returns.index)
@@ -224,6 +307,43 @@ initial_cash = st.sidebar.number_input("Initial Cash ($)", value=20000, step=100
 monthly_cash = st.sidebar.number_input("Monthly Contribution ($)", value=1500, step=100)
 tax_threshold = st.sidebar.number_input("Tax Free Threshold ($)", value=2000, step=500)
 inflation_rate = st.sidebar.slider("Annual Inflation Rate (%)", 0.0, 10.0, 0.0, 0.1) / 100
+
+st.sidebar.markdown("### Strategy")
+strategy_mode = st.sidebar.selectbox(
+    "Rebalancing Strategy", 
+    ["Monthly Rebalancing", "Trend Following (QQQ SMA)"],
+    help="Monthly Rebalancing: Restore target weights every month.\nTrend Following: Risk-Off to Cash/Safe Assets when Signal Ticker < 200 SMA."
+)
+
+signal_ticker = "QQQ"
+safe_assets = ["GLD"]
+sma_window = 200
+use_dual_momentum = False
+risk_off_invested_pct = 0.0
+
+if strategy_mode == "Trend Following (QQQ SMA)":
+    st.sidebar.markdown("#### Trend Settings")
+    col_sig, col_safe = st.sidebar.columns([1, 1])
+    with col_sig:
+        signal_ticker = st.text_input("Signal Ticker", "QQQ").upper()
+    with col_safe:
+        safe_assets_str = st.text_input("Safe Assets", "GLD")
+        safe_assets = [s.strip().upper() for s in safe_assets_str.split(",") if s.strip()]
+    
+    sma_window = st.sidebar.slider("SMA Window", 20, 300, 200, 10)
+    
+    col_dual, col_dummy = st.sidebar.columns([1,0.1])
+    with col_dual:
+        use_dual_momentum = st.sidebar.checkbox(
+            "Dual Momentum Filter", 
+            help="If checked, stay invested if Price > SMA OR 1-Month Return > 0 (reduces fake-outs)."
+        )
+        
+    risk_off_invested_pct = st.sidebar.slider(
+        "Risk-Off Invested %", 
+        0, 100, 0, 10, 
+        help="Percentage of risk assets to KEEP during downturns (Partial De-leveraging)."
+    ) / 100.0
 
 st.sidebar.markdown("---")
 
@@ -310,6 +430,10 @@ if trash_names:
 # Build Selected Scenarios based on "Active" order
 selected_scenarios = []
 all_tickers = set()
+
+# Always add signal ticker if used
+if strategy_mode == "Trend Following (QQQ SMA)":
+    all_tickers.add(signal_ticker)
 
 for name in active_names:
     if name in st.session_state.scenarios:
@@ -405,6 +529,24 @@ else:
         if filtered_stock_data.empty:
             st.warning("No data available for selected date range.")
         else:
+            # Calculate SMA data if needed
+            signal_series = None
+            if strategy_mode == "Trend Following (QQQ SMA)":
+                 if signal_ticker in filtered_stock_data.columns:
+                     ts = filtered_stock_data[signal_ticker]
+                     sma = ts.rolling(window=sma_window).mean()
+                     
+                     sma_bull = ts > sma
+                     
+                     if use_dual_momentum:
+                         # 21 trading days approx 1 month
+                         mom_bull = ts > ts.shift(21)
+                         signal_series = sma_bull | mom_bull
+                     else:
+                         signal_series = sma_bull
+                 else:
+                     st.warning(f"Signal ticker {signal_ticker} not found in data.")
+
             results = {}
             
             for scen in selected_scenarios:
@@ -417,8 +559,13 @@ else:
                     initial_cash, 
                     monthly_cash, 
                     inflation_rate, 
-                    tax_threshold
+                    tax_threshold,
+                    strategy_mode,
+                    signal_series,
+                    safe_assets,
+                    risk_off_invested_pct
                 )
+
                 if hist is not None:
                     results[scen['name']] = {'history': hist, 'metrics': mets}
 

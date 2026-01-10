@@ -1,190 +1,308 @@
 {
-    "1. USD 50/TQQQ 35/GLD 15": {
+    "USD 85/TQQQ 0/GLD 15": {
         "tickers": [
-            "GLD",
+            "USD",
             "TQQQ",
-            "USD"
+            "GLD"
         ],
-        "weights": [
-            0.15,
-            0.35,
-            0.5
+        "weights": [   
+            0.85,
+            0.00,
+            0.15
         ],
         "expenses": [
-            0.004,
+            0.0095,
             0.0086,
-            0.0095
+            0.004
         ]
     },
-    "2. SOXL 50/TQQQ 35/GLD 15": {
+    "USD 80/TQQQ 5/GLD 15": {
         "tickers": [
-            "GLD",
+            "USD",
             "TQQQ",
-            "SOXL"
+            "GLD"
         ],
-        "weights": [
-            0.15,
-            0.35,
-            0.5
+        "weights": [   
+            0.80,
+            0.05,
+            0.15
         ],
         "expenses": [
-            0.004,
+            0.0095,
             0.0086,
-            0.0076
+            0.004
         ]
     },
-    "3. USD 30/QLD 55/GLD 15": {
+    "USD 75/TQQQ 10/GLD 15": {
         "tickers": [
-            "GLD",
-            "QLD",
-            "USD"
+            "USD",
+            "TQQQ",
+            "GLD"
         ],
-        "weights": [
+        "weights": [   
+            0.75,
+            0.10,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 70/TQQQ 15/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
+            0.7,
             0.15,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 65/TQQQ 20/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
+            0.65,
+            0.20,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 60/TQQQ 25/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
+            0.60,
+            0.25,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 55/TQQQ 30/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
             0.55,
-            0.3
+            0.30,
+            0.15
         ],
         "expenses": [
-            0.004,
             0.0095,
-            0.0095
+            0.0086,
+            0.004
         ]
     },
-    "4. USD 50/QLD 35/GLD 15": {
+    "USD 50/TQQQ 35/GLD 15": {
         "tickers": [
-            "GLD",
-            "QLD",
-            "USD"
+            "USD",
+            "TQQQ",
+            "GLD"
         ],
-        "weights": [
-            0.15,
+        "weights": [   
+            0.50,
             0.35,
-            0.5
+            0.15
         ],
         "expenses": [
-            0.004,
             0.0095,
-            0.0095
+            0.0086,
+            0.004
         ]
     },
-    "5. USD 85% + GLD 15%": {
+    "USD 45/TQQQ 40/GLD 15": {
         "tickers": [
-            "GLD",
-            "USD"
+            "USD",
+            "TQQQ",
+            "GLD"
         ],
-        "weights": [
+        "weights": [   
+            0.45,
+            0.40,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 40/TQQQ 45/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
+            0.40,
+            0.45,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 35/TQQQ 50/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
+            0.35,
+            0.50,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 30/TQQQ 55/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
+            0.30,
+            0.55,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 25/TQQQ 60/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
+            0.25,
+            0.60,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    },
+    "USD 20/TQQQ 65/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
+            0.20,
+            0.65,
+            0.15
+        ],
+        "expenses": [
+            0.0095,
+            0.0086,
+            0.004
+        ]
+    }
+    ,"USD 15/TQQQ 70/GLD 15": {
+        "tickers": [
+            "USD",
+            "TQQQ",
+            "GLD"
+        ],
+        "weights": [   
             0.15,
-            0.85
+            0.70,
+            0.15
         ],
         "expenses": [
-            0.004,
-            0.0095
+            0.0095,
+            0.0086,
+            0.004
         ]
     },
-    "6. SOXL 85% + GLD 15%": {
+    "USD 10/TQQQ 75/GLD 15": {
         "tickers": [
-            "GLD",
-            "SOXL"
+            "USD",
+            "TQQQ",
+            "GLD"
         ],
-        "weights": [
-            0.15,
-            0.85
+        "weights": [   
+            0.10,
+            0.75,
+            0.15
         ],
         "expenses": [
-            0.004,
-            0.0076
+            0.0095,
+            0.0086,
+            0.004
         ]
     },
-    "7. TQQQ 85% + GLD 15%": {
+    "USD 5/TQQQ 80/GLD 15": {
         "tickers": [
-            "GLD",
-            "TQQQ"
+            "USD",
+            "TQQQ",
+            "GLD"
         ],
-        "weights": [
-            0.15,
-            0.85
+        "weights": [   
+            0.05,
+            0.80,
+            0.15
         ],
         "expenses": [
-            0.004,
-            0.0086
+            0.0095,
+            0.0086,
+            0.004
         ]
     },
-    "8. SPXL 85% + GLD 15%": {
+    "USD 0/TQQQ 85/GLD 15": {
         "tickers": [
-            "GLD",
-            "SPXL"
+            "USD",
+            "TQQQ",
+            "GLD"
         ],
-        "weights": [
-            0.15,
-            0.85
+        "weights": [   
+            0.00,
+            0.85,
+            0.15
         ],
         "expenses": [
-            0.004,
-            0.0091
-        ]
-    },
-    "9. QLD 85% + GLD 15%": {
-        "tickers": [
-            "GLD",
-            "QLD"
-        ],
-        "weights": [
-            0.15,
-            0.85
-        ],
-        "expenses": [
-            0.004,
-            0.0095
-        ]
-    },
-    "10. UPRO 85% + GLD 15%": {
-        "tickers": [
-            "GLD",
-            "UPRO"
-        ],
-        "weights": [
-            0.15,
-            0.85
-        ],
-        "expenses": [
-            0.004,
-            0.0091
-        ]
-    },
-    "11. VOO 85% + GLD 15%": {
-        "tickers": [
-            "GLD",
-            "VOO"
-        ],
-        "weights": [
-            0.15,
-            0.85
-        ],
-        "expenses": [
-            0.004,
-            0.0003
-        ]
-    },
-    "12. VOO 100%": {
-        "tickers": [
-            "VOO"
-        ],
-        "weights": [
-            1.0
-        ],
-        "expenses": [
-            0.0003
-        ]
-    },
-    "14. SOXL 100%": {
-        "tickers": [
-            "SOXL"
-        ],
-        "weights": [
-            1.0
-        ],
-        "expenses": [
-            0.0076
+            0.0095,
+            0.0086,
+            0.004
         ]
     }
 }
