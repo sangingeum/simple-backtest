@@ -1,6 +1,6 @@
 # ETF Portfolio Backtester
 
-Interactive dashboard for backtesting ETF portfolios with advanced tax and cost simulations.
+Interactive Streamlit dashboard for backtesting ETF portfolios with realistic tax, cost, and strategy simulations.
 
 ## Usage
 
@@ -10,18 +10,27 @@ uv run streamlit run main.py
 
 ## Features
 
-- **Portfolio Management**: Compare predefined and custom ETF portfolios with drag-and-drop organization.
-- **Simulation Engine**:
-    - Monthly rebalancing.
-    - Inflation adjustment.
-    - Transaction costs (Slippage and Commissions).
-    - Tax Logic: Marginal tax rates with options for Immediate or Annual settlement.
-- **Analysis**:
-    - Interactive performance charts.
-    - Metrics: CAGR, Sharpe, Sortino, Volatility, Calmar, Max Drawdown.
-    - Detailed breakdown of final values and costs.
+**Scenarios** -- Create, clone, import/export portfolio scenarios. Each scenario defines a set of tickers with target weights and expense ratios. Select scenarios via checkbox grid with bulk actions (All / None / Invert).
 
+**Strategies** -- 8 built-in signal strategies:
+- Monthly Rebalancing (buy-and-hold benchmark)
+- Trend Following (SMA)
+- SMA Crossover (Golden Cross)
+- Volatility Targeting (VIX)
+- Trailing Stop (High Water Mark)
+- RSI Mean Reversion
+- MACD Divergence
+- Bollinger Band Squeeze
 
-## Image
+**Simulation Engine** -- Monthly rebalancing, inflation-adjusted contributions, transaction costs (slippage + commission), and tax logic with immediate or annual settlement modes.
 
-![page_image](./docs/page_image.png)
+**Analysis Views** -- Results are organized into three tabs:
+- **Charts** -- Portfolio performance and drawdown over time, with log-scale and normalized toggles.
+- **Metrics** -- Sortable table with CAGR, Sharpe, Sortino, Volatility, Max Drawdown, Calmar, Pain Ratio, Win Rate. Default sorted by CAGR.
+- **Analysis** -- Correlation heatmap, rolling returns (1yr / 3yr / 5yr), and annual returns bar chart.
+
+## Screenshots
+
+![page_image_1](./docs/page_image_1.png)
+![page_image_2](./docs/page_image_2.png)
+![page_image_3](./docs/page_image_3.png)

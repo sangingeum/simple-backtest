@@ -1,14 +1,14 @@
 [project]
 name = "backtest"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "ETF Portfolio Backtester with modular strategies and scenario management"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "matplotlib>=3.10.8",
+    "numpy>=2.0",
     "pandas>=2.3.3",
     "plotly>=6.5.1",
     "streamlit>=1.52.2",
-    "streamlit-sortables>=0.3.1",
     "yfinance>=1.0",
 ]
