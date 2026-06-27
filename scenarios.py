@@ -1,8 +1,12 @@
 """
-Scenario persistence — load, save, create, delete.
+Scenario persistence — load, save, create, delete, import/export.
+
+All save paths include NaN sanitization to prevent JSON corruption
+from pandas data editor artifacts.
 """
 
 import json
+import math
 import os
 
 import streamlit as st
@@ -12,18 +16,58 @@ from config import DEFAULT_EXPENSE_RATIOS, INITIAL_SCENARIOS
 SCENARIOS_FILE = "scenarios.json"
 
 
+# ── Sanitisation ──────────────────────────────────────────────────────────────
+
+
+def _sanitize_scenario(details: dict) -> dict:
+    """Strip NaN / None entries from tickers, weights, and expenses lists.
+
+    The Streamlit data_editor can inject NaN when rows are added then
+    partially filled or deleted.  We clean them out so they never reach
+    the JSON file.
+    """
+    tickers = details.get("tickers", [])
+    weights = details.get("weights", [])
+    expenses = details.get("expenses", [])
+
+    # Zip and keep only rows where ticker is a non-empty string and
+    # weight is a valid finite number.
+    clean = [
+        (t, w, e)
+        for t, w, e in zip(tickers, weights, expenses)
+        if isinstance(t, str) and t.strip()
+        and isinstance(w, (int, float)) and math.isfinite(w)
+        and isinstance(e, (int, float)) and math.isfinite(e)
+    ]
+
+    if not clean:
+        return details  # leave unchanged if nothing is valid (avoid data loss)
+
+    clean_tickers, clean_weights, clean_expenses = zip(*clean)
+    return {
+        "tickers": list(clean_tickers),
+        "weights": list(clean_weights),
+        "expenses": list(clean_expenses),
+    }
+
+
+# ── Core I/O ──────────────────────────────────────────────────────────────────
+
+
 def load_scenarios() -> dict:
     """Load scenarios from JSON file or initialize with defaults."""
     if os.path.exists(SCENARIOS_FILE):
         try:
-            with open(SCENARIOS_FILE, 'r') as f:
-                return json.load(f)
+            with open(SCENARIOS_FILE, "r") as f:
+                raw = json.load(f)
+            # Sanitize every scenario on load
+            return {k: _sanitize_scenario(v) for k, v in raw.items()}
         except Exception as e:
             st.error(f"Error loading scenarios: {e}")
             return {}
 
     # First run — seed from built-in defaults
-    scenarios = {}
+    scenarios: dict = {}
     for name, (tickers, weights) in INITIAL_SCENARIOS.items():
         expenses = [DEFAULT_EXPENSE_RATIOS.get(t, 0.0) for t in tickers]
         scenarios[name] = {
@@ -36,10 +80,11 @@ def load_scenarios() -> dict:
 
 
 def save_scenarios(scenarios: dict) -> None:
-    """Persist scenarios to JSON file."""
+    """Persist scenarios to JSON file (sanitized)."""
     try:
-        with open(SCENARIOS_FILE, 'w') as f:
-            json.dump(scenarios, f, indent=4)
+        clean = {k: _sanitize_scenario(v) for k, v in scenarios.items()}
+        with open(SCENARIOS_FILE, "w") as f:
+            json.dump(clean, f, indent=4)
     except Exception as e:
         st.error(f"Error saving scenarios: {e}")
 
@@ -53,6 +98,9 @@ def ensure_expenses(details: dict) -> dict:
     return details
 
 
+# ── CRUD ──────────────────────────────────────────────────────────────────────
+
+
 def create_scenario(
     scenarios: dict,
     name: str,
@@ -61,8 +109,24 @@ def create_scenario(
     expenses: list[float],
 ) -> str | None:
     """Validate and add a new scenario. Returns error message or None on success."""
+    if not name or not name.strip():
+        return "Please provide a scenario name."
     if not tickers:
         return "Please add at least one ticker."
+
+    # Sanitize inputs
+    clean = _sanitize_scenario({
+        "tickers": tickers,
+        "weights": weights,
+        "expenses": expenses,
+    })
+    tickers = clean["tickers"]
+    weights = clean["weights"]
+    expenses = clean["expenses"]
+
+    if not tickers:
+        return "No valid ticker rows found (check for empty fields)."
+
     total = sum(weights)
     if abs(total - 1.0) > 0.01:
         return f"Weights must sum to 1.0 (current: {total:.2f})."
@@ -78,11 +142,50 @@ def create_scenario(
     return None
 
 
+def update_scenario(
+    scenarios: dict,
+    name: str,
+    tickers: list[str],
+    weights: list[float],
+    expenses: list[float],
+) -> str | None:
+    """Update an existing scenario in-place. Returns error message or None."""
+    if name not in scenarios:
+        return f"Scenario '{name}' not found."
+
+    clean = _sanitize_scenario({
+        "tickers": tickers,
+        "weights": weights,
+        "expenses": expenses,
+    })
+    tickers = clean["tickers"]
+    weights = clean["weights"]
+    expenses = clean["expenses"]
+
+    if not tickers:
+        return "No valid ticker rows found."
+
+    total = sum(weights)
+    if abs(total - 1.0) > 0.01:
+        return f"Weights must sum to 1.0 (current: {total:.2f})."
+
+    scenarios[name] = {
+        "tickers": tickers,
+        "weights": weights,
+        "expenses": expenses,
+    }
+    save_scenarios(scenarios)
+    return None
+
+
 def delete_scenario(scenarios: dict, name: str) -> None:
     """Remove a scenario by name and persist."""
     if name in scenarios:
         del scenarios[name]
         save_scenarios(scenarios)
+
+
+# ── Import / Export ───────────────────────────────────────────────────────────
 
 
 def export_scenarios(scenarios: dict, names: list[str]) -> str:
@@ -107,6 +210,7 @@ def import_scenarios(scenarios: dict, json_str: str) -> tuple[int, int]:
         # Basic validation
         if "tickers" in details and "weights" in details:
             details = ensure_expenses(details)
+            details = _sanitize_scenario(details)
             scenarios[name] = details
             imported += 1
         else:

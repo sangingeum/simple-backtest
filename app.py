@@ -56,7 +56,7 @@ def run() -> None:
         st.info("Select at least one scenario from the sidebar to begin.")
         return
 
-    # Collect all tickers needed
+    # Collect all tickers needed — sorted for deterministic cache keys
     all_tickers: set[str] = set()
     strategy_mode = params["strategy_mode"]
 
@@ -66,9 +66,11 @@ def run() -> None:
     for scen in selected_scenarios:
         all_tickers.update(scen["tickers"])
 
+    sorted_tickers = sorted(all_tickers)
+
     # --- Download data ---
     with st.spinner("Downloading market data…"):
-        full_data = get_stock_data(list(all_tickers))
+        full_data = get_stock_data(sorted_tickers)
 
     if full_data.empty:
         st.error("No data found for the selected tickers.")
@@ -141,7 +143,7 @@ def run() -> None:
 
     # --- Tabbed results ---
     tab_charts, tab_metrics, tab_analysis = st.tabs([
-        "Charts", "Metrics", "Analysis",
+        "📈 Charts", "📊 Metrics", "🔬 Analysis",
     ])
 
     with tab_charts:
@@ -213,13 +215,14 @@ def _render_summary_cards(results: dict) -> None:
     cagrs = {n: r["metrics"]["cagr"] for n, r in results.items()}
     sharpes = {n: r["metrics"]["sharpe"] for n, r in results.items()}
     finals = {n: r["metrics"]["final_value"] for n, r in results.items()}
+    rois = {n: r["metrics"].get("roi", 0) for n, r in results.items()}
 
     best_cagr = max(cagrs, key=cagrs.get)
     worst_cagr = min(cagrs, key=cagrs.get)
+    best_sharpe = max(sharpes, key=sharpes.get)
     avg_sharpe = sum(sharpes.values()) / len(sharpes) if sharpes else 0
-    total_final = sum(finals.values())
 
-    cols = st.columns(4)
+    cols = st.columns(5)
     with cols[0]:
         st.metric(
             "Scenarios",
@@ -228,17 +231,23 @@ def _render_summary_cards(results: dict) -> None:
         )
     with cols[1]:
         st.metric(
-            "Best CAGR",
+            "🏆 Best CAGR",
             f"{cagrs[best_cagr] * 100:.1f}%",
             best_cagr,
         )
     with cols[2]:
         st.metric(
-            "Worst CAGR",
+            "📉 Worst CAGR",
             f"{cagrs[worst_cagr] * 100:.1f}%",
             worst_cagr,
         )
     with cols[3]:
+        st.metric(
+            "⚡ Best Sharpe",
+            f"{sharpes[best_sharpe]:.2f}",
+            best_sharpe,
+        )
+    with cols[4]:
         st.metric(
             "Avg Sharpe",
             f"{avg_sharpe:.2f}",
@@ -247,7 +256,7 @@ def _render_summary_cards(results: dict) -> None:
 
 
 def _inject_custom_css() -> None:
-    """Inject lightweight CSS for visual polish."""
+    """Inject CSS for visual polish — metric cards, tabs, dialogs."""
     st.markdown("""
     <style>
     /* Metric cards styling */
@@ -258,6 +267,11 @@ def _inject_custom_css() -> None:
         border: 1px solid rgba(0, 173, 181, 0.2);
         border-radius: 12px;
         padding: 12px 16px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0, 173, 181, 0.15);
     }
     div[data-testid="stMetric"] label {
         font-size: 0.85rem;
@@ -284,10 +298,24 @@ def _inject_custom_css() -> None:
         font-size: 0.85rem;
     }
 
-    /* Data editor improvements */
+    /* Data editor / dataframe improvements */
     .stDataFrame {
         border-radius: 8px;
         overflow: hidden;
+    }
+
+    /* Dialog styling improvements */
+    div[data-testid="stModal"] {
+        backdrop-filter: blur(8px);
+    }
+    div[data-testid="stModal"] > div {
+        border-radius: 16px;
+        border: 1px solid rgba(0, 173, 181, 0.2);
+    }
+
+    /* Smooth transitions on interactive elements */
+    button, .stButton > button {
+        transition: all 0.15s ease;
     }
     </style>
     """, unsafe_allow_html=True)
