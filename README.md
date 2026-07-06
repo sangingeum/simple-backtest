@@ -34,3 +34,5 @@ uv run streamlit run main.py
 ![page_image_1](./docs/page_image_1.png)
 ![page_image_2](./docs/page_image_2.png)
 ![page_image_3](./docs/page_image_3.png)
+![page_image_4](./docs/page_image_4.png)
+![page_image_5](./docs/page_image_5.png)
