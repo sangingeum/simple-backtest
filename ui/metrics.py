@@ -61,6 +61,12 @@ def render_metrics_table(results: dict) -> None:
             "Pain Idx": m["pain_index"] * 100,
             "Pain Ratio": m["pain_ratio"],
             "Win Rate": m["win_rate"] * 100,
+            # Map inf → None so the column renders blank/— instead of "inf"
+            # when there are no losing days (matches the tooltip).
+            "Profit Factor": (
+                None if m.get("profit_factor", 0.0) == float("inf")
+                else m.get("profit_factor", 0.0)
+            ),
         })
 
     df = pd.DataFrame(rows)
@@ -124,6 +130,10 @@ def render_metrics_table(results: dict) -> None:
             "Win Rate": st.column_config.NumberColumn(
                 "Win Rate", format="%.1f%%",
                 help="% of trading days with positive returns",
+            ),
+            "Profit Factor": st.column_config.NumberColumn(
+                "Profit Factor", format="%.2f",
+                help="Gross wins / gross losses (∞ shown as — when no losing days)",
             ),
         },
     )

@@ -523,15 +523,18 @@ def create_scenario_dialog() -> None:
         f"{'✅' if is_valid else '⚠️ must equal 1.0'}"
     )
 
+    # Filter rows TOGETHER so weights/expenses can't drift onto the wrong
+    # ticker when a row has an empty ticker cell.
+    valid_rows = edited_df["Ticker"].astype(str).str.strip() != ""
+    clean_df = edited_df[valid_rows]
+    c_tickers = clean_df["Ticker"].astype(str).str.strip().str.upper().tolist()
+    c_weights = clean_df["Weight"].astype(float).tolist()
+    c_expenses = clean_df["Expense Ratio"].astype(float).tolist()
+
     # Auto-generated name from tickers
-    tickers_preview = [
-        t.strip().upper()
-        for t in edited_df["Ticker"].astype(str).tolist()
-        if t.strip()
-    ]
     auto_name = (
-        " / ".join(f"{t} {w:.0%}" for t, w in zip(tickers_preview, edited_df["Weight"]))
-        if tickers_preview
+        " / ".join(f"{t} {w:.0%}" for t, w in zip(c_tickers, c_weights))
+        if c_tickers
         else "My Portfolio"
     )
 
@@ -540,14 +543,6 @@ def create_scenario_dialog() -> None:
     col_save, col_cancel = st.columns(2)
     with col_save:
         if st.button("💾 Save Scenario", use_container_width=True, type="primary"):
-            c_tickers = [
-                t.strip().upper()
-                for t in edited_df["Ticker"].astype(str).tolist()
-                if t.strip()
-            ]
-            c_weights = edited_df["Weight"].astype(float).tolist()
-            c_expenses = edited_df["Expense Ratio"].astype(float).tolist()
-
             err = create_scenario(
                 st.session_state.scenarios, new_name,
                 c_tickers, c_weights, c_expenses,
@@ -608,13 +603,13 @@ def edit_scenario_dialog(name: str) -> None:
     col_save, col_cancel = st.columns(2)
     with col_save:
         if st.button("💾 Save Changes", use_container_width=True, type="primary"):
-            new_tickers = [
-                t.strip().upper()
-                for t in edited_df["Ticker"].astype(str).tolist()
-                if t.strip()
-            ]
-            new_weights = edited_df["Weight"].astype(float).tolist()
-            new_expenses = edited_df["Expense Ratio"].astype(float).tolist()
+            # Filter rows TOGETHER so weights/expenses can't drift onto the
+            # wrong ticker when rows with empty tickers are removed.
+            valid = edited_df["Ticker"].astype(str).str.strip() != ""
+            rows = edited_df[valid]
+            new_tickers = rows["Ticker"].astype(str).str.strip().str.upper().tolist()
+            new_weights = rows["Weight"].astype(float).tolist()
+            new_expenses = rows["Expense Ratio"].astype(float).tolist()
 
             if not new_tickers:
                 st.error("Please add at least one ticker.")

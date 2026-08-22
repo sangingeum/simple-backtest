@@ -26,8 +26,21 @@ uv run streamlit run main.py
 
 **Analysis Views** -- Results are organized into three tabs:
 - **Charts** -- Portfolio performance and drawdown over time, with log-scale and normalized toggles.
-- **Metrics** -- Sortable table with CAGR, Sharpe, Sortino, Volatility, Max Drawdown, Calmar, Pain Ratio, Win Rate. Default sorted by CAGR.
+- **Metrics** -- Sortable table with CAGR, Sharpe, Sortino, Volatility, Max Drawdown, Calmar, Pain Ratio, Win Rate, Profit Factor. Default sorted by CAGR.
 - **Analysis** -- Correlation heatmap, rolling returns (1yr / 3yr / 5yr), and annual returns bar chart.
+
+## Data & Signal Notes
+
+- Price data is forward-filled across per-ticker holidays, and only leading rows (before any ticker has listed) are dropped — a short-history ETF no longer truncates the whole dataset.
+- Signals are generated on the **full** downloaded history and then sliced to the selected date range, so rolling windows (e.g. SMA 200) are properly warmed up at the start of the range instead of silently reading as "invested".
+- Signals are shifted by one day before use: a flip rebalances on the next trading day (no look-ahead).
+
+## Development
+
+```bash
+uv sync              # installs runtime + dev deps
+uv run pytest -v     # offline test suite (no network required)
+```
 
 ## Screenshots
 

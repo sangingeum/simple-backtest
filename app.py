@@ -5,6 +5,7 @@ Ties together the sidebar, data layer, engine, and visualisation modules.
 """
 
 import streamlit as st
+import pandas as pd
 
 from config import (
     STRAT_CROSS, STRAT_MONTHLY, STRAT_RSI, STRAT_TRAIL, STRAT_TREND, STRAT_VOL,
@@ -99,7 +100,12 @@ def run() -> None:
         return
 
     # --- Signal generation ---
-    signal_series = _generate_signal(filtered_data, params)
+    # Generate on the FULL dataset and pass it UNSLICED: run_backtest shifts
+    # the signal by one day on the full series before aligning to the backtest
+    # window, so day 1 of the range uses the TRUE prior-day signal instead of
+    # defaulting to True. Slicing here (pre-shift) would break that and also
+    # risk a double-shift inside the engine.
+    signal_series = _generate_signal(full_data, params)
 
     # --- Run backtests ---
     results: dict = {}
@@ -160,7 +166,7 @@ def run() -> None:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _generate_signal(data, params) -> "None | object":
+def _generate_signal(data, params) -> "pd.Series | None":
     """Generate a signal series based on the selected strategy."""
     strategy = params["strategy_mode"]
 

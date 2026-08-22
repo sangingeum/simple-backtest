@@ -50,20 +50,23 @@ def calculate_metrics(
     start_val = history_series.iloc[0]
     end_val = history_series.iloc[-1]
 
+    std = daily_returns.std()
     sharpe = (
-        (daily_returns.mean() / daily_returns.std()) * np.sqrt(252)
-        if daily_returns.std() != 0
+        (daily_returns.mean() / std) * np.sqrt(252)
+        if pd.notna(std) and std != 0
         else 0
     )
 
     neg_returns = daily_returns[daily_returns < 0]
+    neg_std = neg_returns.std()
+    # Guard: an empty or constant negative-return series gives NaN, not 0.
     sortino = (
-        (daily_returns.mean() / neg_returns.std()) * np.sqrt(252)
-        if neg_returns.std() != 0
+        (daily_returns.mean() / neg_std) * np.sqrt(252)
+        if pd.notna(neg_std) and neg_std != 0
         else 0
     )
 
-    volatility = daily_returns.std() * np.sqrt(252)
+    volatility = (std * np.sqrt(252)) if pd.notna(std) else 0.0
 
     roll_max = history_series.cummax()
     drawdown = (history_series - roll_max) / roll_max
@@ -87,6 +90,11 @@ def calculate_metrics(
         else 0
     )
 
+    # Profit factor: gross wins / gross losses (inf when no losing days).
+    gross_wins = daily_returns[daily_returns > 0].sum()
+    gross_losses = -daily_returns[daily_returns < 0].sum()
+    profit_factor = gross_wins / gross_losses if gross_losses > 0 else float("inf")
+
     profit = end_val - total_invested
     roi = profit / total_invested if total_invested != 0 else 0.0
 
@@ -101,6 +109,7 @@ def calculate_metrics(
         "pain_index": pain_index,
         "pain_ratio": pain_ratio,
         "win_rate": win_rate,
+        "profit_factor": profit_factor,
         "profit": profit,
         "roi": roi,
         "total_invested": total_invested,
@@ -184,10 +193,28 @@ def _execute_rebalance(
 
         state.assets_value[ticker] = target_val
 
-    # Settle costs
+    # Settle costs. Transaction costs and immediate taxes are deducted from
+    # cash AFTER asset values are set to targets. When implied cash can't
+    # cover them, settle the shortfall proportionally out of asset values
+    # (scale every holding down) — otherwise a fully-invested portfolio
+    # (implied_cash == 0) would silently erase the entire tax liability.
     allocated = sum(state.assets_value.values())
     implied_cash = current_equity - allocated
-    state.cash_balance = implied_cash - total_trans_cost - total_tax_paid_now
+    shortfall = total_trans_cost + total_tax_paid_now - max(0.0, implied_cash)
+    if shortfall > 0 and allocated > 0:
+        scale = (allocated - shortfall) / allocated
+        for ticker in tickers:
+            state.assets_value[ticker] *= scale
+
+    # Final safety net only: never let cash go negative (no invented leverage),
+    # and never let scaling push total value up.
+    state.cash_balance = max(
+        0.0, implied_cash - total_trans_cost - total_tax_paid_now
+    )
+    new_total = sum(state.assets_value.values()) + state.cash_balance
+    if new_total > current_equity:
+        excess = new_total - current_equity
+        state.cash_balance = max(0.0, state.cash_balance - excess)
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +227,13 @@ def _handle_year_boundary(
     tax_settlement_mode: str,
     inflation_rate: float,
 ) -> None:
-    """Settle annual taxes, apply inflation to monthly contribution."""
+    """Settle annual taxes, apply inflation to monthly contribution.
+
+    Triggered on the FIRST trading day of each new calendar year (not the
+    last trading day of the old one). ``last_year`` is initialised to the
+    first year of the backtest, so day one is never misread as a boundary —
+    no spurious tax settlement or inflation compounding on day 1.
+    """
     if date.year == state.last_year:
         return
 
@@ -320,15 +353,18 @@ def run_backtest(
     # Signal preparation — shift by 1 day, then align to returns index
     # ------------------------------------------------------------------
     effective_signal: pd.Series | None = (
-        signal_series.shift(1).fillna(True) if signal_series is not None else None
+        signal_series.shift(1, fill_value=True) if signal_series is not None else None
     )
 
     if effective_signal is not None:
-        effective_signal = effective_signal.reindex(returns.index, method="ffill").fillna(True)
-        try:
-            state.prev_signal_bull = effective_signal.iloc[0]
-        except Exception:
-            state.prev_signal_bull = True
+        sig = effective_signal.reindex(returns.index, method="ffill").fillna(True)
+        # Coerce to a strict bool so downstream comparisons are reliable even
+        # when callers pass object/float series (0/1, np.bool_, etc.).
+        # NOTE: fillna(True) MUST precede astype(bool) — astype maps NaN to
+        # True, so filling first is the only way NaN becomes False-safe here.
+        sig = sig.astype(bool)
+        state.prev_signal_bull = bool(sig.iloc[0])
+        effective_signal = sig
 
     # ------------------------------------------------------------------
     # Simulation loop

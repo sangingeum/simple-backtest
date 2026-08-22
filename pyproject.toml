@@ -1,14 +1,23 @@
 [project]
 name = "backtest"
-version = "0.2.0"
+version = "0.2.1"
 description = "ETF Portfolio Backtester with modular strategies and scenario management"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "matplotlib>=3.10.8",
-    "numpy>=2.0",
+    "numpy>=2.0,<2.4",
     "pandas>=2.3.3",
     "plotly>=6.5.1",
     "streamlit>=1.52.2",
     "yfinance>=1.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
